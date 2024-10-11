@@ -5,13 +5,39 @@
 #include <array>
 #include <string>
 #include <sstream>
+#include <vector>
 
-bool check_instruction(std::uint16_t inst, std::uint16_t target, std::uint16_t mask) {
+// Hardware
+std::array<std::uint8_t, 4096> memory {};
+std::array<std::array<std::uint8_t, 32>, 64> display {}; // 64w X 32h Display
+
+std::uint16_t program_counter = 0;
+std::uint16_t i_register = 0;
+std::uint8_t delay_timer = 0;
+std::uint8_t sound_timer = 0;
+
+std::array<std::uint8_t, 16> registers{};
+std::vector<int> stack(0); // TODO size?
+
+/*
+    The first CHIP-8 interpreter (on the COSMAC VIP computer) was also located in RAM, from address 000 to 1FF. 
+    It would expect a CHIP-8 program to be loaded into memory after it, starting at address 200
+*/
+const int instruction_start_addr = 0x200;
+
+//  For some reason, it’s become popular to put fonts at 050–09F. We will follow this "convention". TODO
+
+
+// Decompiler
+bool check_instruction(std::uint16_t inst, std::uint16_t target, std::uint16_t mask) 
+{
     return ((inst & mask) ^ target) == 0;
 }
 
-int main() {
-    // Given a file, disassemble the first instruction
+
+void decompile() 
+{
+    // Given a rom file, disassemble instructions and print them to the console
     char instruction[2] = {0};
     uint16_t current_address = 0;
     std::ifstream input("roms/IBM Logo.ch8", std::ios::binary);
@@ -25,11 +51,11 @@ int main() {
         printf("0x%04x  0x%04x ", current_address, current_instruction); // Print instruction address and value as hex
         current_address += 2; // Advance to next address
 
-        if (current_instruction == 0x00E0)
+        if (current_instruction == 0x00E0) {
             // CLS - Clear screen
             std::cout << "CLS\n";
 
-        else if (check_instruction(current_instruction, 0xA000, 0xF000)) {
+        } else if (check_instruction(current_instruction, 0xA000, 0xF000)) {
             // LD - Load from address
             std::uint8_t reg = static_cast<std::uint8_t>((current_instruction & 0x0F00) >> 8);
             std::uint8_t address = static_cast<std::uint8_t>(current_instruction & 0x00FF);
@@ -104,6 +130,11 @@ int main() {
             std::cout << "NOOP?\n";
         }
     }
+}
 
+
+int main() 
+{
+    decompile();
     return 0;
 }
