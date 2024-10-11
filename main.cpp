@@ -23,8 +23,6 @@ std::vector<int> stack(0); // TODO size?
     The first CHIP-8 interpreter (on the COSMAC VIP computer) was also located in RAM, from address 000 to 1FF. 
     It would expect a CHIP-8 program to be loaded into memory after it, starting at address 200
 */
-const int instruction_start_addr = 0x200;
-
 //  For some reason, it’s become popular to put fonts at 050–09F. We will follow this "convention". TODO
 
 
@@ -38,6 +36,7 @@ bool check_instruction(std::uint16_t inst, std::uint16_t target, std::uint16_t m
 void decompile() 
 {
     // Given a rom file, disassemble instructions and print them to the console
+    std::cout << "-- BEGIN DECOMPILATION --\n";
     char instruction[2] = {0};
     uint16_t current_address = 0;
     std::ifstream input("roms/IBM Logo.ch8", std::ios::binary);
@@ -130,6 +129,8 @@ void decompile()
             std::cout << "NOOP?\n";
         }
     }
+
+    std::cout << "-- END DECOMPILATION --\n";
 }
 
 
