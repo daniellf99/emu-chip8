@@ -143,8 +143,7 @@ int main()
     decompile();
     
     // Now we begin the emulation
-    // Load the program into memory at the default address
-    // Get the first byte of the program
+    // 1. Load the program into memory at the default address
     std::ifstream input("roms/IBM Logo.ch8", std::ios::binary);
     std::uint16_t address = PROGRAM_START_ADDRESS;
     char byte {};
@@ -155,7 +154,7 @@ int main()
         address++;
     }
 
-    // Dump memory into file
+    // Dump memory into file for debugging
     std::ofstream output("out/memory-dump.hex", std::ios::binary | std::ios::out);
     address = 0;
     while (address < MEMORY_SIZE_BYTES) {
