@@ -3,7 +3,7 @@
 WIP
 
 ## Next steps
-* Implement hardware (memory, registers)
+* Add instructions to memory
 * Implement instruction behavior
 * Print machine state after every instruction
 * Add screen (SDL lib)
