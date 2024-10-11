@@ -8,7 +8,9 @@
 #include <vector>
 
 // Hardware
-std::array<std::uint8_t, 4096> memory {};
+const int MEMORY_SIZE_BYTES = 4096;
+
+std::array<std::uint8_t, MEMORY_SIZE_BYTES> memory {};
 std::array<std::array<std::uint8_t, 32>, 64> display {}; // 64w X 32h Display
 
 std::uint16_t program_counter = 0;
@@ -21,8 +23,9 @@ std::vector<int> stack(0); // TODO size?
 
 /*
     The first CHIP-8 interpreter (on the COSMAC VIP computer) was also located in RAM, from address 000 to 1FF. 
-    It would expect a CHIP-8 program to be loaded into memory after it, starting at address 200
+    It would expect a CHIP-8 program to be loaded into memory after it, starting at address 0x200
 */
+const uint16_t PROGRAM_START_ADDRESS = 0x200;
 //  For some reason, it’s become popular to put fonts at 050–09F. We will follow this "convention". TODO
 
 
@@ -134,8 +137,31 @@ void decompile()
 }
 
 
-int main() 
+int main()
 {
+    // First of all, we print the program instructions in order to debug better
     decompile();
+    
+    // Now we begin the emulation
+    // Load the program into memory at the default address
+    // Get the first byte of the program
+    std::ifstream input("roms/IBM Logo.ch8", std::ios::binary);
+    std::uint16_t address = PROGRAM_START_ADDRESS;
+    char byte {};
+
+    // Copy program into memory
+    while (input.get(byte)) {
+        memory.at(address) = static_cast<std::uint8_t>(static_cast<unsigned char>(byte));
+        address++;
+    }
+
+    // Dump memory into file
+    std::ofstream output("out/memory-dump.hex", std::ios::binary | std::ios::out);
+    address = 0;
+    while (address < MEMORY_SIZE_BYTES) {
+        output.put(static_cast<char>(static_cast<unsigned char>(memory.at(address))));
+        address++;
+    }
+
     return 0;
 }
