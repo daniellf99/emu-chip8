@@ -1,5 +1,3 @@
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_video.h>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -9,8 +7,6 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_surface.h"
 
 // Hardware
 const int MEMORY_SIZE_BYTES = 4096;
