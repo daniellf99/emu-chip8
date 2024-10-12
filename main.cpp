@@ -1,3 +1,6 @@
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_video.h>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
@@ -6,12 +9,16 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_surface.h"
 
 // Hardware
 const int MEMORY_SIZE_BYTES = 4096;
+const int SCREEN_HEIGHT = 32;
+const int SCREEN_WIDTH = 64;
 
 std::array<std::uint8_t, MEMORY_SIZE_BYTES> memory {};
-std::array<std::array<std::uint8_t, 32>, 64> display {}; // 64w X 32h Display
+std::array<std::array<std::uint8_t, SCREEN_WIDTH>, SCREEN_HEIGHT> display {}; // 64w X 32h Display
 
 std::uint16_t program_counter = 0;
 std::uint16_t i_register = 0;
@@ -58,10 +65,9 @@ void decompile()
             std::cout << "CLS\n";
 
         } else if (check_instruction(current_instruction, 0xA000, 0xF000)) {
-            // LD - Load from address
-            std::uint8_t reg = static_cast<std::uint8_t>((current_instruction & 0x0F00) >> 8);
-            std::uint8_t address = static_cast<std::uint8_t>(current_instruction & 0x00FF);
-            std::cout << "LD V" << unsigned(reg) << ", ";
+            // LD I, nnn - Load from address into register I
+            std::uint16_t address = current_instruction & 0x0FFF;
+            std::cout << "LD I, ";
             printf("0x%04x\n", address);
 
         } else if (check_instruction(current_instruction, 0x1000, 0xF000)) {
@@ -137,6 +143,146 @@ void decompile()
 }
 
 
+void dump_memory() 
+{
+    std::ofstream output("out/memory-dump.hex", std::ios::binary | std::ios::out);
+
+    for (uint16_t address = 0; address < MEMORY_SIZE_BYTES; address++) {
+        output.put(static_cast<char>(static_cast<unsigned char>(memory.at(address))));
+    }
+
+    output.close();
+}
+
+
+void dump_display()
+{
+    std::ofstream output("out/display-dump.txt", std::ios::out);
+
+    for (unsigned i=0; i < SCREEN_HEIGHT; i++) {
+        for (unsigned j=0; j < SCREEN_WIDTH; j++) {
+            output << static_cast<unsigned int>(display.at(i).at(j));
+        }
+        output << "\n";
+    }
+
+    output.close();
+}
+
+void display_registers()
+{
+    std::cout << "V0=" << unsigned(registers.at(0)) << " ";
+    std::cout << "V1=" << unsigned(registers.at(1)) << " ";
+    std::cout << "I=" << unsigned(i_register) << " ";
+    std::cout << "PC=" << unsigned(program_counter) << " ";
+    std::cout << "\n";
+}
+
+
+void fetch_decode_execute() 
+{
+    // Fetch instruction that PC is pointing to
+    std::array<std::uint8_t, 2> raw_instruction;
+    raw_instruction.at(0) = memory.at(program_counter);
+    raw_instruction.at(1) = memory.at(program_counter+1);
+    program_counter += 2;
+
+    // Decode & Execute
+    std::uint16_t instruction = (raw_instruction.at(0) << 8) | raw_instruction.at(1);
+
+    std::uint8_t second_nibble = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+    std::uint8_t third_nibble = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
+    std::uint8_t fourth_nibble = static_cast<std::uint8_t>((instruction & 0x000F));
+    std::uint8_t second_byte = static_cast<std::uint8_t>(instruction & 0x00FF);
+    std::uint16_t address_param = instruction & 0x0FFF;
+    
+    if (instruction == 0x00E0) {
+        // CLS - Clear screen
+        std::cout << "CLS\n";
+
+    } else if (check_instruction(instruction, 0xA000, 0xF000)) {
+        // LD - Load from address into register I
+        i_register = address_param;
+        std::cout << "LD\n";
+
+    } else if (check_instruction(instruction, 0x1000, 0xF000)) {
+        // JP - Jump to address
+        program_counter = address_param;
+        std::cout << "JP\n";
+
+    } else if (instruction == 0x00EE) {
+        // RET - Return from subroutine
+        std::cout << "RET\n";
+
+    } else if (check_instruction(instruction, 0x6000, 0xF000)) {
+        // LD - Load literal/Set register Vx
+        registers.at(second_nibble) = second_byte;
+        std::cout << "LD literal\n";
+
+    } else if (check_instruction(instruction, 0xD000, 0xF000)) {
+        // DRW - Draw
+        auto x = registers.at(second_nibble);
+        auto y = registers.at(third_nibble);
+        auto bytes_to_read = fourth_nibble;
+        
+        // 0,0 coords are at the top left of the screen
+        for (unsigned int i=0; i<bytes_to_read; i++) {
+            auto sprite = memory.at(i_register+i);
+
+            for (unsigned int j=0; j<8; j++) {
+                display.at(y+i).at(x+j) = display.at(y+i).at(x+j) ^ ((sprite >> (7-j)) & 0x1);
+            }
+        }
+
+        std::cout << "DRW V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << ", ";
+        printf("0x%01x\n", fourth_nibble);
+
+    } else if (check_instruction(instruction, 0x7000, 0xF000)) {
+        // ADD - Add value
+        registers.at(second_nibble) += second_byte;
+        std::cout << "ADD\n";
+
+    } else if (check_instruction(instruction, 0x3000, 0xF000)) {
+        // SE - Skip next instruction on condition
+        std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+        std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
+        std::cout << "SE V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
+
+    } else if (check_instruction(instruction, 0x0, 0xF000)) {
+        // SYS - Jump to a machine code routine
+        std::uint16_t address = instruction & 0x0FFF;
+        printf("SYS 0x%04x\n", address);
+
+    } else if (check_instruction(instruction, 0xB000, 0xF000)) {
+        // JP - Jump to location nnn + V0
+        std::uint16_t address = instruction & 0x0FFF;
+        printf("JP V0, 0x%04x\n", address);
+
+    } else if (check_instruction(instruction, 0xC000, 0xF000)) {
+        // RND - Set random value
+        std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+        std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
+        std::cout << "RND V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
+
+    } else if (check_instruction(instruction, 0x4000, 0xF000)) {
+        // SNE - Skip next instruction on condition
+        std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+        std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
+        std::cout << "SNE V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
+
+    } else if (check_instruction(instruction, 0x8000, 0xF00F)) {
+        // LD - Load from register to register
+        std::uint8_t reg_x = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+        std::uint8_t reg_y = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
+        std::cout << "LD V" << unsigned(reg_x) << ", V" << unsigned(reg_y) << "\n";
+
+    }
+    else {
+        std::cout << "NOOP?\n";
+    }
+}
+
+
 int main()
 {
     // First of all, we print the program instructions in order to debug better
@@ -154,12 +300,14 @@ int main()
         address++;
     }
 
-    // Dump memory into file for debugging
-    std::ofstream output("out/memory-dump.hex", std::ios::binary | std::ios::out);
-    address = 0;
-    while (address < MEMORY_SIZE_BYTES) {
-        output.put(static_cast<char>(static_cast<unsigned char>(memory.at(address))));
-        address++;
+    // Run instructions
+    program_counter = PROGRAM_START_ADDRESS;
+    while (true)
+    {
+        fetch_decode_execute();
+        dump_memory();
+        dump_display();
+        display_registers();
     }
 
     return 0;
