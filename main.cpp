@@ -195,6 +195,11 @@ void fetch_decode_execute()
     if (instruction == 0x00E0) {
         // CLS - Clear screen
         std::cout << "CLS\n";
+        for (unsigned i=0; i < SCREEN_HEIGHT; i++) {
+            for (unsigned j=0; j < SCREEN_WIDTH; j++) {
+                display.at(i).at(j) = 0;
+            }
+        }
 
     } else if (check_instruction(instruction, 0xA000, 0xF000)) {
         // LD - Load from address into register I
