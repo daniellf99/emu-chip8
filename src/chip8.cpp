@@ -11,11 +11,12 @@
 #include "chip8.h"
 
 namespace chip8 {
-    constexpr int MEMORY_SIZE_BYTES = 4096;
-    constexpr int SCREEN_HEIGHT = 32;
-    constexpr int SCREEN_WIDTH = 64;
+    std::string LIB_NAME = "Emu-Chip8";
+    std::string LIB_VERSION = "0.1.0";
 
-        /*
+    constexpr int MEMORY_SIZE_BYTES = 4096;
+
+    /*
         The first CHIP-8 interpreter (on the COSMAC VIP computer) was also located in RAM, from address 000 to 1FF. 
         It would expect a CHIP-8 program to be loaded into memory after it, starting at address 0x200
     */
@@ -33,6 +34,9 @@ namespace chip8 {
     std::vector<int> stack(0); // TODO size?
 
     //  For some reason, it’s become popular to put fonts at 050–09F. We will follow this "convention". TODO
+
+    const char *get_lib_name() {return LIB_NAME.c_str();};
+    const char *get_lib_version() {return LIB_VERSION.c_str();};
 
     // Decompiler
     bool check_instruction(std::uint16_t inst, std::uint16_t target, std::uint16_t mask) 

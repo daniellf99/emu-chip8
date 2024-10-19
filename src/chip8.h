@@ -1,7 +1,14 @@
 #include <cstdint>
 #include <cstddef>
+#include <string>
 
 namespace chip8 {
+    inline constexpr int SCREEN_HEIGHT = 32;
+    inline constexpr int SCREEN_WIDTH = 64;
+
+    const char *get_lib_name();
+    const char *get_lib_version();
+
     bool check_instruction(std::uint16_t inst, std::uint16_t target, std::uint16_t mask);
     
     void decompile();

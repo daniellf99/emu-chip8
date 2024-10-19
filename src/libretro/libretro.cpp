@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with emu-chip8. If not, see <http://www.gnu.org/licenses/>.
 */
 // Includes
+#include <cstring>
 
 #if _MSC_VER >= 1910 && !__INTEL_COMPILER
 #include "win32.h"
@@ -160,11 +161,11 @@ void retro_init(void)
  */
 void retro_get_system_info(struct retro_system_info *info)
 {
-    memset(info, 0, sizeof(retro_system_info));
-    info->library_name = vectrex->GetName();
-    info->library_version = vectrex->GetVersion();
+    std::memset(info, 0, sizeof(retro_system_info));
+    info->library_name = chip8::get_lib_name();
+    info->library_version = chip8::get_lib_version();
     info->need_fullpath = false;
-    info->valid_extensions = "bin|vec";
+    info->valid_extensions = "ch8";
 }
 
 /*
@@ -176,12 +177,12 @@ void retro_get_system_av_info(struct retro_system_av_info *info) {
     int pixel_format = RETRO_PIXEL_FORMAT_RGB565;
 
     memset(info, 0, sizeof(retro_system_av_info));
-    info->timing.fps            = 50.0;
-    info->timing.sample_rate    = 44100.0;
-    info->geometry.base_width   = FRAME_WIDTH;
-    info->geometry.base_height  = FRAME_HEIGHT;
-    info->geometry.max_width    = FRAME_WIDTH;
-    info->geometry.max_height   = FRAME_HEIGHT;
+    info->timing.fps            = 60.0;
+    info->timing.sample_rate    = 44100.0; // TODO
+    info->geometry.base_width   = chip8::SCREEN_WIDTH;
+    info->geometry.base_height  = chip8::SCREEN_HEIGHT;
+    info->geometry.max_width    = chip8::SCREEN_WIDTH;
+    info->geometry.max_height   = chip8::SCREEN_HEIGHT;
     //info->geometry.aspect_ratio = 330.0f / 410.0f;
 
     // the performance level is guide to frontend to give an idea of how intensive this core is to run
