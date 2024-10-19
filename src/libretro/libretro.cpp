@@ -192,7 +192,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info) {
 // Reset the Vectrex
 void retro_reset(void)
 {
-    vectrex->Reset();
+    chip8::reset();
 }
 
 // Test the user input and return the state of the joysticks and buttons
