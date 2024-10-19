@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <cstring>
 #include "chip8.h"
 
 namespace chip8 {
@@ -284,18 +285,13 @@ namespace chip8 {
         }
     }
 
-    void load_rom()
+    void load_rom(const uint8_t *data, size_t size)
     {
-        // Open ROM file in binary mode
-        std::ifstream input("roms/IBM Logo.ch8", std::ios::binary);
-
         // Copy program into memory, starting at the default start address
         std::uint16_t address = PROGRAM_START_ADDRESS;
-        char byte {};
-        while (input.get(byte)) {
-            memory.at(address) = static_cast<std::uint8_t>(static_cast<unsigned char>(byte));
-            address++;
-        }
+        
+        // TODO Check for size violation
+        std::memcpy(&memory.at(address), data, size);
 
         program_counter = PROGRAM_START_ADDRESS;
     }

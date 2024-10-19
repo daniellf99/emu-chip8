@@ -9,6 +9,9 @@ int main()
     chip8::decompile();
     
     // Now, we begin the emulation
+    // Open ROM file in binary mode
+    std::ifstream input("roms/IBM Logo.ch8", std::ios::binary);
+    // TODO load as uint_8*
     chip8::load_rom();
 
     while (true)
