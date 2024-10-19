@@ -1,3 +1,12 @@
 roms/
 out/
+include/
+deps/
+
 .vscode/
+.clangd
+
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
