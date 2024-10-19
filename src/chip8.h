@@ -15,4 +15,6 @@ namespace chip8 {
     void fetch_decode_execute();
 
     void load_rom(uint8_t *data, size_t size);
+
+    void unload_rom();
 }

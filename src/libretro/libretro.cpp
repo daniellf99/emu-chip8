@@ -95,7 +95,7 @@ bool retro_load_game(const struct retro_game_info *info)
 bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info) { return false; }
 
 // Unload the cartridge
-void retro_unload_game(void) { vectrex->UnloadCartridge(); }
+void retro_unload_game(void) { chip8::unload_rom(); }
 
 unsigned retro_get_region(void) { return RETRO_REGION_PAL; }
 

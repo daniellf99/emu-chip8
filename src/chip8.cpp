@@ -295,4 +295,9 @@ namespace chip8 {
 
         program_counter = PROGRAM_START_ADDRESS;
     }
+
+    void unload_rom()
+    {
+        memory.fill(0);
+    }
 }
