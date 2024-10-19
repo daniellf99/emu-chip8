@@ -150,7 +150,8 @@ void retro_init(void)
     // the performance level is guide to frontend to give an idea of how intensive this core is to run
     environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 
-    vectrex->Reset();
+    // vectrex->Reset();
+    chip8::reset();
 }
 
 

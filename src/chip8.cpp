@@ -298,6 +298,16 @@ namespace chip8 {
 
     void unload_rom()
     {
+        reset();
+    }
+
+    void reset()
+    {
+        program_counter = 0;
+        i_register = 0;
+        delay_timer = 0;
+        sound_timer = 0;
+        registers.fill(0);
         memory.fill(0);
     }
 }
