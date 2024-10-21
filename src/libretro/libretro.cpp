@@ -289,8 +289,8 @@ void retro_run(void)
     //     audio_cb(convs, convs);
     // }
     
-    // video_cb(reinterpret_cast<const uint16_t*>(out_buffer.data()),
-    //     FRAME_WIDTH, FRAME_HEIGHT, sizeof(unsigned short) * FRAME_WIDTH);
+    video_cb(chip8::get_video_buffer().begin(),
+        chip8::SCREEN_WIDTH, chip8::SCREEN_HEIGHT, sizeof(uint16_t) * chip8::SCREEN_WIDTH);
 }
 
 

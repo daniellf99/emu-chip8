@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <string>
+#include <array>
 
 namespace chip8 {
     inline constexpr int SCREEN_HEIGHT = 32;
@@ -26,4 +27,6 @@ namespace chip8 {
     void unload_rom();
 
     void reset();
+
+    std::array<std::array<uint16_t, SCREEN_WIDTH>, SCREEN_HEIGHT> get_video_buffer();
 }
