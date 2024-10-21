@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with emu-chip8. If not, see <http://www.gnu.org/licenses/>.
 */
 // Includes
+#include <cstdint>
 #include <cstring>
 
 #if _MSC_VER >= 1910 && !__INTEL_COMPILER
@@ -84,10 +85,11 @@ bool retro_load_game(const struct retro_game_info *info)
 
     // Reset the Vectrex, clears the cart ROM and loads the System ROM
     // vectrex->Reset();
+    chip8::reset();
 
     if (info && info->data) { // ensure there is ROM data
         // return vectrex->LoadCartridge((const uint8_t*)info->data, info->size);
-        chip8::load_rom();
+        chip8::load_rom((const  uint8_t*) info->data, info->size);
     }
 
     return true;
@@ -223,9 +225,9 @@ void get_joystick_state(unsigned port, uint8_t &x, uint8_t &y, uint8_t &b1, uint
     b4 = (unsigned char) (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y ) ? 1 : 0);
 }
 
-static const auto green = vxgfx::pf_argb_t(255, 255, 0, 128 );
+// static const auto green = vxgfx::pf_argb_t(255, 255, 0, 128 );
 
-// Run a single frames with out Vectrex emulation.
+// Run a single frame with our chip8 emulator
 void retro_run(void)
 {
     bool updated = false;
@@ -242,52 +244,53 @@ void retro_run(void)
     get_joystick_state(0, p1_x, p1_y, p1_b1, p1_b2, p1_b3, p1_b4);
     get_joystick_state(1, p2_x, p2_y, p2_b1, p2_b2, p2_b3, p2_b4);
 
-    vectrex->SetPlayerOne(p1_x, p1_y, p1_b1, p1_b2, p1_b3, p1_b4);
-    vectrex->SetPlayerTwo(p2_x, p2_y, p2_b1, p2_b2, p2_b3, p2_b4);
+    // vectrex->SetPlayerOne(p1_x, p1_y, p1_b1, p1_b2, p1_b3, p1_b4);
+    // vectrex->SetPlayerTwo(p2_x, p2_y, p2_b1, p2_b2, p2_b3, p2_b4);
 
-    vectrex->psg_->channel_a_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_1);
-    vectrex->psg_->channel_b_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_2);
-    vectrex->psg_->channel_c_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_3);
+    // vectrex->psg_->channel_a_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_1);
+    // vectrex->psg_->channel_b_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_2);
+    // vectrex->psg_->channel_c_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_3);
 
     // Vectrex CPU is 1.5MHz (1500000) and at 50 fps, a frame lasts 20ms, therefore in every frame 30,000 cycles happen.
-    auto cycles_run = vectrex->Run(cycles_per_frame);
+    // auto cycles_run = vectrex->Run(cycles_per_frame);
+    chip8::fetch_decode_execute(10u);
 
     // Get buffers
-    auto fb = vectrex->getFramebuffer();
-    auto db = vectrex->getDebugbuffer();
+    // auto fb = vectrex->getFramebuffer();
+    // auto db = vectrex->getDebugbuffer();
 
     // Print sound debugging text
-    vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 10, green, vxl::format("@ %.fHz", (double)(cycles_run * 50)));
-    vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 20, green, vxl::format("Channel A: %3.0fHz (noise: %d)", vectrex->psg_->channel_a.frequency_, vectrex->psg_->channel_a.noise_enabled));
-    vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 30, green, vxl::format("Channel B: %3.0fHz (noise: %d)", vectrex->psg_->channel_b.frequency_, vectrex->psg_->channel_b.noise_enabled));
-    vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 40, green, vxl::format("Channel C: %3.0fHz (noise: %d)", vectrex->psg_->channel_c.frequency_, vectrex->psg_->channel_c.noise_enabled));
+    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 10, green, vxl::format("@ %.fHz", (double)(cycles_run * 50)));
+    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 20, green, vxl::format("Channel A: %3.0fHz (noise: %d)", vectrex->psg_->channel_a.frequency_, vectrex->psg_->channel_a.noise_enabled));
+    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 30, green, vxl::format("Channel B: %3.0fHz (noise: %d)", vectrex->psg_->channel_b.frequency_, vectrex->psg_->channel_b.noise_enabled));
+    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 40, green, vxl::format("Channel C: %3.0fHz (noise: %d)", vectrex->psg_->channel_c.frequency_, vectrex->psg_->channel_c.noise_enabled));
 
 
     // Define the pf_mono_t => pf_rgb565_t transform
-    auto mono_to_rgb565 = [](const vxgfx::pf_mono_t &p) {
-        return vxgfx::pf_rgb565_t(static_cast<uint8_t>(0xff * p.value),
-                                  static_cast<uint8_t>(0xff * p.value),
-                                  static_cast<uint8_t>(0xff * p.value));
-    };
+    // auto mono_to_rgb565 = [](const vxgfx::pf_mono_t &p) {
+    //     return vxgfx::pf_rgb565_t(static_cast<uint8_t>(0xff * p.value),
+    //                               static_cast<uint8_t>(0xff * p.value),
+    //                               static_cast<uint8_t>(0xff * p.value));
+    // };
 
     // fb => out_buffer transform
-    std::transform(fb->begin(), fb->end(), out_buffer.begin(), mono_to_rgb565);
+    // std::transform(fb->begin(), fb->end(), out_buffer.begin(), mono_to_rgb565);
 
     // TODO
     // some blending of db on top of out_buffer
 
     // 882 audio samples per frame (44.1kHz @ 50 fps)
-    uint8_t buffer[882];
-    vectrex->psg_->FillBuffer(buffer, sizeof(buffer));
+    // uint8_t buffer[882];
+    // vectrex->psg_->FillBuffer(buffer, sizeof(buffer));
 
-    for (unsigned char i : buffer) {
-        auto convs = static_cast<short>((i << 8u) - 0x7ffu);
-        // mono sound, same data for both channels
-        audio_cb(convs, convs);
-    }
+    // for (unsigned char i : buffer) {
+    //     auto convs = static_cast<short>((i << 8u) - 0x7ffu);
+    //     // mono sound, same data for both channels
+    //     audio_cb(convs, convs);
+    // }
     
-    video_cb(reinterpret_cast<const uint16_t*>(out_buffer.data()),
-        FRAME_WIDTH, FRAME_HEIGHT, sizeof(unsigned short) * FRAME_WIDTH);
+    // video_cb(reinterpret_cast<const uint16_t*>(out_buffer.data()),
+    //     FRAME_WIDTH, FRAME_HEIGHT, sizeof(unsigned short) * FRAME_WIDTH);
 }
 
 

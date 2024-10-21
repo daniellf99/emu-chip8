@@ -181,7 +181,7 @@ namespace chip8 {
     }
 
 
-    void fetch_decode_execute() 
+    void fetch_decode_execute(unsigned int cycles)
     {
         // Fetch instruction that PC is pointing to
         std::array<std::uint8_t, 2> raw_instruction;
@@ -215,7 +215,7 @@ namespace chip8 {
         } else if (check_instruction(instruction, 0x1000, 0xF000)) {
             // JP - Jump to address
             program_counter = address_param;
-            std::cout << "JP\n";
+            // std::cout << "JP\n";
 
         } else if (instruction == 0x00EE) {
             // RET - Return from subroutine

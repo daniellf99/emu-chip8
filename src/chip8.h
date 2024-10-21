@@ -19,9 +19,9 @@ namespace chip8 {
 
     void display_registers();
 
-    void fetch_decode_execute();
+    void fetch_decode_execute(unsigned int cycles);
 
-    void load_rom(uint8_t *data, size_t size);
+    void load_rom(const uint8_t *data, size_t size);
 
     void unload_rom();
 
