@@ -198,19 +198,16 @@ namespace chip8 {
         std::uint8_t second_byte = static_cast<std::uint8_t>(instruction & 0x00FF);
         std::uint16_t address_param = instruction & 0x0FFF;
         
-        if (instruction == 0x00E0) {
+        if (check_instruction(instruction, 0x0000, 0xF000)) {
+            // SYS - Jump to a machine code routine
+            printf("SYS 0x%04x (NOOP)\n", address_param);
+
+        } else if (instruction == 0x00E0) {
             // CLS - Clear screen
             std::cout << "CLS\n";
             for (unsigned i=0; i < SCREEN_HEIGHT; i++) {
-                for (unsigned j=0; j < SCREEN_WIDTH; j++) {
-                    display.at(i).at(j) = 0;
-                }
+                display.at(i).fill(0);
             }
-
-        } else if (check_instruction(instruction, 0xA000, 0xF000)) {
-            // LD - Load from address into register I
-            i_register = address_param;
-            std::cout << "LD\n";
 
         } else if (check_instruction(instruction, 0x1000, 0xF000)) {
             // JP - Jump to address
@@ -221,10 +218,93 @@ namespace chip8 {
             // RET - Return from subroutine
             std::cout << "RET\n";
 
+        } else if (check_instruction(instruction, 0x3000, 0xF000)) {
+            // 3xkk - SE Vx, byte
+            // Skip next instruction if Vx = kk.
+            if (registers.at(second_nibble) == second_byte) 
+            {
+                program_counter += 2;
+            }
+            std::cout << "SE V" << unsigned(second_nibble) << ", #" << unsigned(second_byte) << "\n";
+        
+        } else if (check_instruction(instruction, 0x4000, 0xF000)) {
+            // 4xkk - SNE Vx, byte
+            // Skip next instruction if Vx != kk.
+            if (registers.at(second_nibble) != second_byte)
+            {
+                program_counter += 2;
+            }
+            std::cout << "SNE V" << unsigned(second_nibble) << ", #" << unsigned(second_byte) << "\n";
+
+
+        } else if (check_instruction(instruction, 0x5000, 0xF00F)) {
+            // 5xy0 - SE Vx, Vy
+            // Skip next instruction if Vx = Vy.
+            if (registers.at(second_nibble) == registers.at(third_nibble))
+            {
+                program_counter += 2;
+            }
+
         } else if (check_instruction(instruction, 0x6000, 0xF000)) {
             // LD - Load literal/Set register Vx
             registers.at(second_nibble) = second_byte;
             std::cout << "LD literal\n";
+
+        } else if (check_instruction(instruction, 0x7000, 0xF000)) {
+            // ADD - Add value
+            registers.at(second_nibble) += second_byte;
+            std::cout << "ADD\n";
+
+        } else if (check_instruction(instruction, 0x8000, 0xF00F)) {
+            // LD - Load from register to register
+            std::uint8_t reg_x = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+            std::uint8_t reg_y = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
+            std::cout << "LD V" << unsigned(reg_x) << ", V" << unsigned(reg_y) << "\n";
+
+        } else if (check_instruction(instruction, 0x8001, 0xF00F)) {
+            // 8xy1 - OR Vx, Vy
+            // Set Vx = Vx OR Vy.
+            registers.at(second_nibble) |= registers.at(third_nibble);
+            std::cout << "OR V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
+
+        } else if (check_instruction(instruction, 0x8002, 0xF00F)) {
+            // 8xy2 - AND Vx, Vy
+            // Set Vx = Vx AND Vy.
+            registers.at(second_nibble) &= registers.at(third_nibble);
+            std::cout << "AND V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
+
+        } else if (check_instruction(instruction, 0x8003, 0xF00F)) {
+            // 8xy3 - XOR Vx, Vy
+            // Set Vx = Vx XOR Vy.
+            registers.at(second_nibble) ^= registers.at(third_nibble);
+            std::cout << "XOR V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
+
+        } else if (check_instruction(instruction, 0x8004, 0xF00F)) {
+            // 8xy4 - ADD Vx, Vy
+            // Set Vx = Vx + Vy, set VF = carry.
+            uint16_t result = static_cast<uint16_t>(registers.at(second_nibble)) + static_cast<uint16_t>(registers.at(third_nibble));
+            registers.at(second_nibble) = static_cast<uint8_t>(result);
+            if ((result & 0xF00) > 0)
+            {
+                registers.at(0xF) = 1;
+            }
+            std::cout << "ADD V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
+
+        } else if (check_instruction(instruction, 0xA000, 0xF000)) {
+            // LD - Load from address into register I
+            i_register = address_param;
+            std::cout << "LD\n";
+
+        } else if (check_instruction(instruction, 0xB000, 0xF000)) {
+            // JP - Jump to location nnn + V0
+            std::uint16_t address = instruction & 0x0FFF;
+            printf("JP V0, 0x%04x\n", address);
+
+        } else if (check_instruction(instruction, 0xC000, 0xF000)) {
+            // RND - Set random value
+            std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+            std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
+            std::cout << "RND V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
 
         } else if (check_instruction(instruction, 0xD000, 0xF000)) {
             // DRW - Draw
@@ -244,48 +324,14 @@ namespace chip8 {
             std::cout << "DRW V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << ", ";
             printf("0x%01x\n", fourth_nibble);
 
-        } else if (check_instruction(instruction, 0x7000, 0xF000)) {
-            // ADD - Add value
-            registers.at(second_nibble) += second_byte;
-            std::cout << "ADD\n";
+        } else if (check_instruction(instruction, 0xF01E, 0xF0FF)) {
+            // Fx1E - ADD I, Vx
+            // The values of I and Vx are added, and the results are stored in I.
+            i_register += registers.at(second_nibble);
+            std::cout << "ADD I, V" << unsigned(second_nibble) << "\n";
 
-        } else if (check_instruction(instruction, 0x3000, 0xF000)) {
-            // SE - Skip next instruction on condition
-            std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-            std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
-            std::cout << "SE V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
-
-        } else if (check_instruction(instruction, 0x0, 0xF000)) {
-            // SYS - Jump to a machine code routine
-            std::uint16_t address = instruction & 0x0FFF;
-            printf("SYS 0x%04x\n", address);
-
-        } else if (check_instruction(instruction, 0xB000, 0xF000)) {
-            // JP - Jump to location nnn + V0
-            std::uint16_t address = instruction & 0x0FFF;
-            printf("JP V0, 0x%04x\n", address);
-
-        } else if (check_instruction(instruction, 0xC000, 0xF000)) {
-            // RND - Set random value
-            std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-            std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
-            std::cout << "RND V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
-
-        } else if (check_instruction(instruction, 0x4000, 0xF000)) {
-            // SNE - Skip next instruction on condition
-            std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-            std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
-            std::cout << "SNE V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
-
-        } else if (check_instruction(instruction, 0x8000, 0xF00F)) {
-            // LD - Load from register to register
-            std::uint8_t reg_x = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-            std::uint8_t reg_y = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
-            std::cout << "LD V" << unsigned(reg_x) << ", V" << unsigned(reg_y) << "\n";
-
-        }
-        else {
-            std::cout << "NOOP?\n";
+        } else {
+            std::cout << "NOOP? " << unsigned(instruction) << "\n";
         }
     }
 

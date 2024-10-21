@@ -41,8 +41,6 @@ static retro_audio_sample_batch_t audio_batch_cb;
 
 unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 
-static void update_variables(void);
-
 // Cheats
 void retro_cheat_reset(void) {}
 void retro_cheat_set(unsigned index, bool enabled, const char *code) {}
@@ -50,9 +48,6 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code) {}
 // Load a cartridge
 bool retro_load_game(const struct retro_game_info *info)
 {
-    // Load custom core settings
-    update_variables();
-
     // Set the controller descriptor
     struct retro_input_descriptor desc[] = {
             { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
