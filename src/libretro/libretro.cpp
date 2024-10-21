@@ -29,8 +29,6 @@ along with emu-chip8. If not, see <http://www.gnu.org/licenses/>.
 
 constexpr int CYCLES_PER_FRAME = 700;
 unsigned long cycles_per_frame = CYCLES_PER_FRAME;
-// std::unique_ptr<Vectrex> vectrex = std::make_unique<Vectrex>();
-// vxgfx::framebuffer<FRAME_WIDTH, FRAME_HEIGHT, vxgfx::pf_rgb565_t> out_buffer{};
 
 // Callbacks
 static retro_log_printf_t log_cb;
@@ -83,12 +81,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
     environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
-    // Reset the Vectrex, clears the cart ROM and loads the System ROM
-    // vectrex->Reset();
     chip8::reset();
 
     if (info && info->data) { // ensure there is ROM data
-        // return vectrex->LoadCartridge((const uint8_t*)info->data, info->size);
         chip8::load_rom((const  uint8_t*) info->data, info->size);
     }
 
@@ -122,9 +117,6 @@ void retro_set_environment(retro_environment_t cb) {
   environ_cb = cb;
 
   struct retro_variable variables[] = {
-#ifdef VECTREXIA_DEBUG
-      { "vectrexia_internal_slowdown", "Internal Slowdown; 1x|2x|5x|10x|20x|50x|100x|1000x|10000x|30000x" },
-#endif
       { NULL, NULL },
   };
 
@@ -153,7 +145,6 @@ void retro_init(void)
     // the performance level is guide to frontend to give an idea of how intensive this core is to run
     environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
 
-    // vectrex->Reset();
     chip8::reset();
 }
 
@@ -185,132 +176,21 @@ void retro_get_system_av_info(struct retro_system_av_info *info) {
     info->geometry.base_height  = chip8::SCREEN_HEIGHT;
     info->geometry.max_width    = chip8::SCREEN_WIDTH;
     info->geometry.max_height   = chip8::SCREEN_HEIGHT;
-    //info->geometry.aspect_ratio = 330.0f / 410.0f;
 
     // the performance level is guide to frontend to give an idea of how intensive this core is to run
     environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format);
 }
 
-// Reset the Vectrex
 void retro_reset(void)
 {
     chip8::reset();
 }
 
-// Test the user input and return the state of the joysticks and buttons
-void get_joystick_state(unsigned port, uint8_t &x, uint8_t &y, uint8_t &b1, uint8_t &b2, uint8_t &b3, uint8_t &b4)
-{
-    if (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
-        x = 0x00;
-    else if (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
-        x = 0xff;
-    else
-        x = (uint8_t) (
-                (input_state_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X) / 256) + 128);
-
-    if (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
-        y = 0xff;
-    else if (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN ))
-        y = 0x00;
-    else
-    {
-        // retroarch y axis is inverted wrt to the vectrex
-        auto y_value = input_state_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
-        y = (uint8_t) (~((y_value/256) + 128) + 1);
-    }
-
-    b1 = (unsigned char) (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A ) ? 1 : 0);
-    b2 = (unsigned char) (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B ) ? 1 : 0);
-    b3 = (unsigned char) (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X ) ? 1 : 0);
-    b4 = (unsigned char) (input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y ) ? 1 : 0);
-}
-
-// static const auto green = vxgfx::pf_argb_t(255, 255, 0, 128 );
-
 // Run a single frame with our chip8 emulator
 void retro_run(void)
 {
-    bool updated = false;
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-      update_variables();
-
-    // User input
-    input_poll_cb();
-
-    uint8_t p1_x, p1_y, p2_x, p2_y;
-    uint8_t p1_b1, p1_b2, p1_b3, p1_b4, p2_b1, p2_b2, p2_b3, p2_b4;
-
-    // updates the p1_* variables
-    get_joystick_state(0, p1_x, p1_y, p1_b1, p1_b2, p1_b3, p1_b4);
-    get_joystick_state(1, p2_x, p2_y, p2_b1, p2_b2, p2_b3, p2_b4);
-
-    // vectrex->SetPlayerOne(p1_x, p1_y, p1_b1, p1_b2, p1_b3, p1_b4);
-    // vectrex->SetPlayerTwo(p2_x, p2_y, p2_b1, p2_b2, p2_b3, p2_b4);
-
-    // vectrex->psg_->channel_a_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_1);
-    // vectrex->psg_->channel_b_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_2);
-    // vectrex->psg_->channel_c_on = !input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_3);
-
-    // Vectrex CPU is 1.5MHz (1500000) and at 50 fps, a frame lasts 20ms, therefore in every frame 30,000 cycles happen.
-    // auto cycles_run = vectrex->Run(cycles_per_frame);
     chip8::fetch_decode_execute(10u);
-
-    // Get buffers
-    // auto fb = vectrex->getFramebuffer();
-    // auto db = vectrex->getDebugbuffer();
-
-    // Print sound debugging text
-    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 10, green, vxl::format("@ %.fHz", (double)(cycles_run * 50)));
-    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 20, green, vxl::format("Channel A: %3.0fHz (noise: %d)", vectrex->psg_->channel_a.frequency_, vectrex->psg_->channel_a.noise_enabled));
-    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 30, green, vxl::format("Channel B: %3.0fHz (noise: %d)", vectrex->psg_->channel_b.frequency_, vectrex->psg_->channel_b.noise_enabled));
-    // vxgfx::draw_text<vxgfx::m_direct>(*db, 2, 40, green, vxl::format("Channel C: %3.0fHz (noise: %d)", vectrex->psg_->channel_c.frequency_, vectrex->psg_->channel_c.noise_enabled));
-
-
-    // Define the pf_mono_t => pf_rgb565_t transform
-    // auto mono_to_rgb565 = [](const vxgfx::pf_mono_t &p) {
-    //     return vxgfx::pf_rgb565_t(static_cast<uint8_t>(0xff * p.value),
-    //                               static_cast<uint8_t>(0xff * p.value),
-    //                               static_cast<uint8_t>(0xff * p.value));
-    // };
-
-    // fb => out_buffer transform
-    // std::transform(fb->begin(), fb->end(), out_buffer.begin(), mono_to_rgb565);
-
-    // TODO
-    // some blending of db on top of out_buffer
-
-    // 882 audio samples per frame (44.1kHz @ 50 fps)
-    // uint8_t buffer[882];
-    // vectrex->psg_->FillBuffer(buffer, sizeof(buffer));
-
-    // for (unsigned char i : buffer) {
-    //     auto convs = static_cast<short>((i << 8u) - 0x7ffu);
-    //     // mono sound, same data for both channels
-    //     audio_cb(convs, convs);
-    // }
     
     video_cb(chip8::get_video_buffer().begin(),
         chip8::SCREEN_WIDTH, chip8::SCREEN_HEIGHT, sizeof(uint16_t) * chip8::SCREEN_WIDTH);
-}
-
-
-static void update_variables(void) {
-#ifdef VECTREXIA_DEBUG
-  struct retro_variable var = {
-      .key = "vectrexia_internal_slowdown",
-  };
-
-  if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
-    char str[100];
-    snprintf(str, sizeof(str), "%s", var.value);
-
-    auto pch = strtok(str, "x");
-    if (pch) {
-      auto factor = strtoul(pch, nullptr, 0);
-      cycles_per_frame = CYCLES_PER_FRAME / factor;
-    }
-
-    log_cb(RETRO_LOG_DEBUG, "[vectrexia]: Running at %lu cycles per frame.\n", cycles_per_frame);
-  }
-#endif
 }
