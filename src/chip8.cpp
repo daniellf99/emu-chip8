@@ -198,7 +198,6 @@ namespace chip8 {
             std::array<std::uint8_t, 2> raw_instruction;
             raw_instruction.at(0) = memory.at(program_counter);
             raw_instruction.at(1) = memory.at(program_counter+1);
-            program_counter += 2;
 
             // Decode & Execute
             std::uint16_t instruction = (raw_instruction.at(0) << 8) | raw_instruction.at(1);
@@ -210,6 +209,8 @@ namespace chip8 {
             std::uint16_t address_param = instruction & 0x0FFF;
 
             printf("0x%04x 0x%04x ", program_counter, instruction);
+
+            program_counter += 2;
             
             if (instruction == 0x00E0) {
                 // CLS - Clear screen
@@ -384,7 +385,7 @@ namespace chip8 {
             } else if (check_instruction(instruction, 0xB000, 0xF000)) {
                 // Bnnn - JP V0, addr
                 // Jump to location nnn + V0.
-                program_counter = address_param + registers.at(0);
+                program_counter = address_param + static_cast<uint16_t>(registers.at(0));
                 printf("JP V0, 0x%04x\n", address_param);
 
             } else if (check_instruction(instruction, 0xC000, 0xF000)) {
@@ -397,25 +398,30 @@ namespace chip8 {
             } else if (check_instruction(instruction, 0xD000, 0xF000)) {
                 // Dxyn - DRW Vx, Vy, nibble
                 // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-                auto x_val = registers.at(x);
-                auto y_val = registers.at(y);
-                auto bytes_to_read = nibble;
+                std::uint8_t x_val = registers.at(x);
+                std::uint8_t y_val = registers.at(y);
+                std::uint8_t bytes_to_read = nibble;
                 
                 // 0,0 coords are at the top left of the screen
                 for (unsigned int i=0; i<bytes_to_read; i++) {
+                    auto row = (y_val + i) % SCREEN_HEIGHT;
+                    std::cout << "ROW" << row << std::endl;
+                    std::cout << i_register+i << std::endl;
                     auto sprite = memory.at(i_register+i);
 
                     for (unsigned int j=0; j<8; j++) {
+                        auto column = (x_val + j) % SCREEN_WIDTH;
+                        std::cout << "COL" << row << std::endl;
                         bool was_set;
-                        if (display.at(y_val+i).at(x_val+j) == 1) {
+                        if (display.at(row).at(column) == 1) {
                             was_set = true;
                         } else {
                             was_set = false;
                         }
 
-                        display.at(y_val+i).at(x_val+j) = display.at(y_val+i).at(x_val+j) ^ ((sprite >> (7-j)) & 0x1);
+                        display.at(row).at(column) = display.at(row).at(column) ^ ((sprite >> (7-j)) & 0x1);
 
-                        if (display.at(y_val+i).at(x_val+j) == 0 && was_set) {
+                        if (display.at(row).at(column) == 0 && was_set) {
                             // Bit was erased, so we set VF
                             registers.at(0xF) = 1;
                         }
