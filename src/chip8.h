@@ -29,4 +29,6 @@ namespace chip8 {
     void reset();
 
     std::array<std::array<uint16_t, SCREEN_WIDTH>, SCREEN_HEIGHT> get_video_buffer();
+
+    void startup();
 }

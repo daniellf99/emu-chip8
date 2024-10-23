@@ -6,6 +6,7 @@
 #include <array>
 #include <string>
 #include <sstream>
+#include <sys/types.h>
 #include <vector>
 #include <cstring>
 #include "chip8.h"
@@ -26,6 +27,7 @@ namespace chip8 {
     std::uint16_t i_register = 0;
     std::uint8_t delay_timer = 0;
     std::uint8_t sound_timer = 0;
+    std::uint32_t global_cycle_number = 0;
 
     std::array<std::uint8_t, MEMORY_SIZE_BYTES> memory {};
     std::array<std::array<std::uint8_t, SCREEN_WIDTH>, SCREEN_HEIGHT> display {}; // 64w X 32h Display
@@ -183,155 +185,307 @@ namespace chip8 {
 
     void fetch_decode_execute(unsigned int cycles)
     {
-        // Fetch instruction that PC is pointing to
-        std::array<std::uint8_t, 2> raw_instruction;
-        raw_instruction.at(0) = memory.at(program_counter);
-        raw_instruction.at(1) = memory.at(program_counter+1);
-        program_counter += 2;
+        for (unsigned int curr_cycle = 1; curr_cycle <= cycles; curr_cycle++)
+        {
+            global_cycle_number++;
 
-        // Decode & Execute
-        std::uint16_t instruction = (raw_instruction.at(0) << 8) | raw_instruction.at(1);
-
-        std::uint8_t second_nibble = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-        std::uint8_t third_nibble = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
-        std::uint8_t fourth_nibble = static_cast<std::uint8_t>((instruction & 0x000F));
-        std::uint8_t second_byte = static_cast<std::uint8_t>(instruction & 0x00FF);
-        std::uint16_t address_param = instruction & 0x0FFF;
-        
-        if (check_instruction(instruction, 0x0000, 0xF000)) {
-            // SYS - Jump to a machine code routine
-            printf("SYS 0x%04x (NOOP)\n", address_param);
-
-        } else if (instruction == 0x00E0) {
-            // CLS - Clear screen
-            std::cout << "CLS\n";
-            for (unsigned i=0; i < SCREEN_HEIGHT; i++) {
-                display.at(i).fill(0);
+            if (global_cycle_number % 12 == 0) {
+                if (delay_timer > 0) delay_timer--;
+                if (sound_timer > 0) sound_timer--;
             }
 
-        } else if (check_instruction(instruction, 0x1000, 0xF000)) {
-            // JP - Jump to address
-            program_counter = address_param;
-            // std::cout << "JP\n";
+            // Fetch instruction that PC is pointing to
+            std::array<std::uint8_t, 2> raw_instruction;
+            raw_instruction.at(0) = memory.at(program_counter);
+            raw_instruction.at(1) = memory.at(program_counter+1);
+            program_counter += 2;
 
-        } else if (instruction == 0x00EE) {
-            // RET - Return from subroutine
-            std::cout << "RET\n";
+            // Decode & Execute
+            std::uint16_t instruction = (raw_instruction.at(0) << 8) | raw_instruction.at(1);
 
-        } else if (check_instruction(instruction, 0x3000, 0xF000)) {
-            // 3xkk - SE Vx, byte
-            // Skip next instruction if Vx = kk.
-            if (registers.at(second_nibble) == second_byte) 
-            {
-                program_counter += 2;
-            }
-            std::cout << "SE V" << unsigned(second_nibble) << ", #" << unsigned(second_byte) << "\n";
-        
-        } else if (check_instruction(instruction, 0x4000, 0xF000)) {
-            // 4xkk - SNE Vx, byte
-            // Skip next instruction if Vx != kk.
-            if (registers.at(second_nibble) != second_byte)
-            {
-                program_counter += 2;
-            }
-            std::cout << "SNE V" << unsigned(second_nibble) << ", #" << unsigned(second_byte) << "\n";
+            std::uint8_t x = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+            std::uint8_t y = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
+            std::uint8_t nibble = static_cast<std::uint8_t>((instruction & 0x000F));
+            std::uint8_t kk = static_cast<std::uint8_t>(instruction & 0x00FF);
+            std::uint16_t address_param = instruction & 0x0FFF;
 
-
-        } else if (check_instruction(instruction, 0x5000, 0xF00F)) {
-            // 5xy0 - SE Vx, Vy
-            // Skip next instruction if Vx = Vy.
-            if (registers.at(second_nibble) == registers.at(third_nibble))
-            {
-                program_counter += 2;
-            }
-
-        } else if (check_instruction(instruction, 0x6000, 0xF000)) {
-            // LD - Load literal/Set register Vx
-            registers.at(second_nibble) = second_byte;
-            std::cout << "LD literal\n";
-
-        } else if (check_instruction(instruction, 0x7000, 0xF000)) {
-            // ADD - Add value
-            registers.at(second_nibble) += second_byte;
-            std::cout << "ADD\n";
-
-        } else if (check_instruction(instruction, 0x8000, 0xF00F)) {
-            // LD - Load from register to register
-            std::uint8_t reg_x = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-            std::uint8_t reg_y = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
-            std::cout << "LD V" << unsigned(reg_x) << ", V" << unsigned(reg_y) << "\n";
-
-        } else if (check_instruction(instruction, 0x8001, 0xF00F)) {
-            // 8xy1 - OR Vx, Vy
-            // Set Vx = Vx OR Vy.
-            registers.at(second_nibble) |= registers.at(third_nibble);
-            std::cout << "OR V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
-
-        } else if (check_instruction(instruction, 0x8002, 0xF00F)) {
-            // 8xy2 - AND Vx, Vy
-            // Set Vx = Vx AND Vy.
-            registers.at(second_nibble) &= registers.at(third_nibble);
-            std::cout << "AND V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
-
-        } else if (check_instruction(instruction, 0x8003, 0xF00F)) {
-            // 8xy3 - XOR Vx, Vy
-            // Set Vx = Vx XOR Vy.
-            registers.at(second_nibble) ^= registers.at(third_nibble);
-            std::cout << "XOR V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
-
-        } else if (check_instruction(instruction, 0x8004, 0xF00F)) {
-            // 8xy4 - ADD Vx, Vy
-            // Set Vx = Vx + Vy, set VF = carry.
-            uint16_t result = static_cast<uint16_t>(registers.at(second_nibble)) + static_cast<uint16_t>(registers.at(third_nibble));
-            registers.at(second_nibble) = static_cast<uint8_t>(result);
-            if ((result & 0xF00) > 0)
-            {
-                registers.at(0xF) = 1;
-            }
-            std::cout << "ADD V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << "\n";
-
-        } else if (check_instruction(instruction, 0xA000, 0xF000)) {
-            // LD - Load from address into register I
-            i_register = address_param;
-            std::cout << "LD\n";
-
-        } else if (check_instruction(instruction, 0xB000, 0xF000)) {
-            // JP - Jump to location nnn + V0
-            std::uint16_t address = instruction & 0x0FFF;
-            printf("JP V0, 0x%04x\n", address);
-
-        } else if (check_instruction(instruction, 0xC000, 0xF000)) {
-            // RND - Set random value
-            std::uint8_t reg = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
-            std::uint8_t value = static_cast<std::uint8_t>(instruction & 0x00FF);
-            std::cout << "RND V" << unsigned(reg) << ", #" << unsigned(value) << "\n";
-
-        } else if (check_instruction(instruction, 0xD000, 0xF000)) {
-            // DRW - Draw
-            auto x = registers.at(second_nibble);
-            auto y = registers.at(third_nibble);
-            auto bytes_to_read = fourth_nibble;
+            printf("0x%04x 0x%04x ", program_counter, instruction);
             
-            // 0,0 coords are at the top left of the screen
-            for (unsigned int i=0; i<bytes_to_read; i++) {
-                auto sprite = memory.at(i_register+i);
-
-                for (unsigned int j=0; j<8; j++) {
-                    display.at(y+i).at(x+j) = display.at(y+i).at(x+j) ^ ((sprite >> (7-j)) & 0x1);
+            if (instruction == 0x00E0) {
+                // CLS - Clear screen
+                std::cout << "CLS\n";
+                for (unsigned i=0; i < SCREEN_HEIGHT; i++) {
+                    display.at(i).fill(0);
                 }
+
+            } else if (instruction == 0x00EE) {
+                // 00EE - RET
+                // Return from a subroutine.
+                program_counter = stack.back();
+                stack.pop_back();
+                std::cout << "RET\n";
+
+            } else if (check_instruction(instruction, 0x0000, 0xF000)) {
+                // 0nnn - SYS addr
+                // Jump to a machine code routine at nnn.
+                // This instruction is only used on the old computers on which Chip-8 was originally implemented. It is ignored by modern interpreters.
+                printf("SYS 0x%04x (NOOP)\n", address_param);
+
+            } else if (check_instruction(instruction, 0x1000, 0xF000)) {
+                // 1nnn - JP addr
+                // Jump to location nnn.
+                program_counter = address_param;
+                printf("JP 0x%04x\n", address_param);
+            
+            } else if (check_instruction(instruction, 0x2000, 0xF000)) {
+                // 2nnn - CALL addr
+                // Call subroutine at nnn.
+                stack.push_back(program_counter);
+                program_counter = address_param;
+                printf("CALL 0x%04x\n", address_param);
+
+            } else if (check_instruction(instruction, 0x3000, 0xF000)) {
+                // 3xkk - SE Vx, byte
+                // Skip next instruction if Vx = kk.
+                if (registers.at(x) == kk) 
+                {
+                    program_counter += 2;
+                }
+                std::cout << "SE V" << unsigned(x) << ", #" << unsigned(kk) << "\n";
+            
+            } else if (check_instruction(instruction, 0x4000, 0xF000)) {
+                // 4xkk - SNE Vx, byte
+                // Skip next instruction if Vx != kk.
+                if (registers.at(x) != kk)
+                {
+                    program_counter += 2;
+                }
+                std::cout << "SNE V" << unsigned(x) << ", #" << unsigned(kk) << "\n";
+
+
+            } else if (check_instruction(instruction, 0x5000, 0xF00F)) {
+                // 5xy0 - SE Vx, Vy
+                // Skip next instruction if Vx = Vy.
+                if (registers.at(x) == registers.at(y))
+                {
+                    program_counter += 2;
+                }
+
+            } else if (check_instruction(instruction, 0x6000, 0xF000)) {
+                // 6xkk - LD Vx, byte
+                // Set Vx = kk.
+                registers.at(x) = kk;
+                printf("LD V%u, 0x%02x\n", x, kk);
+
+            } else if (check_instruction(instruction, 0x7000, 0xF000)) {
+                // 7xkk - ADD Vx, byte
+                // Set Vx = Vx + kk.
+                registers.at(x) += kk;
+                printf("ADD V%u, 0x%02x\n", x, kk);
+
+            } else if (check_instruction(instruction, 0x8000, 0xF00F)) {
+                // LD - Load from register to register
+                std::uint8_t reg_x = static_cast<std::uint8_t>((instruction & 0x0F00) >> 8);
+                std::uint8_t reg_y = static_cast<std::uint8_t>((instruction & 0x00F0) >> 4);
+                std::cout << "LD V" << unsigned(reg_x) << ", V" << unsigned(reg_y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8001, 0xF00F)) {
+                // 8xy1 - OR Vx, Vy
+                // Set Vx = Vx OR Vy.
+                registers.at(x) |= registers.at(y);
+                std::cout << "OR V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8002, 0xF00F)) {
+                // 8xy2 - AND Vx, Vy
+                // Set Vx = Vx AND Vy.
+                registers.at(x) &= registers.at(y);
+                std::cout << "AND V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8003, 0xF00F)) {
+                // 8xy3 - XOR Vx, Vy
+                // Set Vx = Vx XOR Vy.
+                registers.at(x) ^= registers.at(y);
+                std::cout << "XOR V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8004, 0xF00F)) {
+                // 8xy4 - ADD Vx, Vy
+                // Set Vx = Vx + Vy, set VF = carry.
+                uint16_t result = static_cast<uint16_t>(registers.at(x)) + static_cast<uint16_t>(registers.at(y));
+                registers.at(x) = static_cast<uint8_t>(result);
+                if ((result & 0xF00) > 0)
+                {
+                    registers.at(0xF) = 1;
+                }   
+                std::cout << "ADD V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8005, 0xF00F)) {
+                // 8xy5 - SUB Vx, Vy
+                // Set Vx = Vx - Vy, set VF = NOT borrow.
+                if (registers.at(x) > registers.at(y))
+                {
+                    registers.at(0xF) = 1;
+                } else {
+                    registers.at(0xF) = 0;
+                }
+                registers.at(x) -= registers.at(y);   
+                std::cout << "SUB V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8006, 0xF00F)) {
+                // 8xy6 - SHR Vx {, Vy}
+                // Set Vx = Vx SHR 1.
+                if ((registers.at(x) & 0x1) == 0x1)
+                {
+                    registers.at(0xF) = 1;
+                } else {
+                    registers.at(0xF) = 0;
+                }
+                registers.at(x) /= 2;   
+                std::cout << "SHR V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x8007, 0xF00F)) {
+                // 8xy7 - SUBN Vx, Vy
+                // Set Vx = Vy - Vx, set VF = NOT borrow.
+                if (registers.at(y) > registers.at(x))
+                {
+                    registers.at(0xF) = 1;
+                } else {
+                    registers.at(0xF) = 0;
+                }
+                registers.at(x) = registers.at(y) - registers.at(x);   
+                std::cout << "SUBN V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x800E, 0xF00F)) {
+                // 8xyE - SHL Vx {, Vy}
+                // Set Vx = Vx SHL 1.
+                if ((registers.at(x) & 0x80) == 0x80)
+                {
+                    registers.at(0xF) = 1;
+                } else {
+                    registers.at(0xF) = 0;
+                }
+                registers.at(x) *= 2;   
+                std::cout << "SHL V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0x9000, 0xF00F)) {
+                // 9xy0 - SNE Vx, Vy
+                // Skip next instruction if Vx != Vy.
+                if (registers.at(x) != registers.at(y))
+                {
+                    program_counter += 2;
+                }   
+                std::cout << "SNE V" << unsigned(x) << ", V" << unsigned(y) << "\n";
+
+            } else if (check_instruction(instruction, 0xA000, 0xF000)) {
+                // Annn - LD I, addr
+                // Set I = nnn.
+                i_register = address_param;
+                printf("LD I, 0x%04x\n", address_param);
+
+            } else if (check_instruction(instruction, 0xB000, 0xF000)) {
+                // Bnnn - JP V0, addr
+                // Jump to location nnn + V0.
+                program_counter = address_param + registers.at(0);
+                printf("JP V0, 0x%04x\n", address_param);
+
+            } else if (check_instruction(instruction, 0xC000, 0xF000)) {
+                // Cxkk - RND Vx, byte
+                // Set Vx = random byte AND kk.
+                uint8_t random = static_cast<uint8_t>(rand() % 256);
+                registers.at(x) = (random & kk);
+                std::cout << "RND V" << unsigned(x) << ", #" << unsigned(kk) << "\n";
+
+            } else if (check_instruction(instruction, 0xD000, 0xF000)) {
+                // Dxyn - DRW Vx, Vy, nibble
+                // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+                auto x_val = registers.at(x);
+                auto y_val = registers.at(y);
+                auto bytes_to_read = nibble;
+                
+                // 0,0 coords are at the top left of the screen
+                for (unsigned int i=0; i<bytes_to_read; i++) {
+                    auto sprite = memory.at(i_register+i);
+
+                    for (unsigned int j=0; j<8; j++) {
+                        bool was_set;
+                        if (display.at(y_val+i).at(x_val+j) == 1) {
+                            was_set = true;
+                        } else {
+                            was_set = false;
+                        }
+
+                        display.at(y_val+i).at(x_val+j) = display.at(y_val+i).at(x_val+j) ^ ((sprite >> (7-j)) & 0x1);
+
+                        if (display.at(y_val+i).at(x_val+j) == 0 && was_set) {
+                            // Bit was erased, so we set VF
+                            registers.at(0xF) = 1;
+                        }
+                    }
+                }
+
+                std::cout << "DRW V" << unsigned(x) << ", V" << unsigned(nibble) << ", ";
+                printf("0x%01x\n", nibble);
+
+            } else if (check_instruction(instruction, 0xF007, 0xF0FF)) {
+                // Fx07 - LD Vx, DT
+                // Set Vx = delay timer value.
+                registers.at(x) = delay_timer;
+                std::cout << "LD V" << unsigned(x) << ", DT\n";
+
+            } else if (check_instruction(instruction, 0xF015, 0xF0FF)) {
+                // Fx15 - LD DT, Vx
+                // Set delay timer = Vx.
+                delay_timer = registers.at(x);
+                std::cout << "LD DT, V" << unsigned(x) << "\n";
+
+            } else if (check_instruction(instruction, 0xF018, 0xF0FF)) {
+                // Fx18 - LD ST, Vx
+                // Set sound timer = Vx.
+                sound_timer = registers.at(x);
+                std::cout << "LD ST, V" << unsigned(x) << "\n";
+
+            } else if (check_instruction(instruction, 0xF01E, 0xF0FF)) {
+                // Fx1E - ADD I, Vx
+                // Set I = I + Vx.
+                i_register += registers.at(x);
+                std::cout << "ADD I, V" << unsigned(x) << "\n";
+
+            } else if (check_instruction(instruction, 0xF029, 0xF0FF)) {
+                // Fx29 - LD F, Vx
+                // Set I = location of sprite for digit Vx.
+                auto font = registers.at(x);
+                i_register = (font * 5) + 0x50;
+                std::cout << "LD F, V" << unsigned(x) << "\n";
+
+            } else if (check_instruction(instruction, 0xF033, 0xF0FF)) {
+                // Fx33 - LD B, Vx
+                // Store BCD representation of Vx in memory locations I, I+1, and I+2.
+                auto val = registers.at(x);
+
+                memory.at(i_register) = val/100;
+                memory.at(i_register+1) = val/10;
+                memory.at(i_register+2) = val%10;
+                
+                std::cout << "LD B, V" << unsigned(x) << "\n";
+
+            } else if (check_instruction(instruction, 0xF055, 0xF0FF)) {
+                // Fx55 - LD [I], Vx
+                // Store registers V0 through Vx in memory starting at location I.
+                for (uint16_t i = 0; i < x; i++) {
+                    memory.at(i_register+i) = registers.at(i);
+                } // TODO CHECK
+                std::cout << "LD [I], V" << unsigned(x) << "\n";
+
+            } else if (check_instruction(instruction, 0xF065, 0xF0FF)) {
+                // Fx65 - LD Vx, [I]
+                // Read registers V0 through Vx from memory starting at location I.
+                for (uint16_t i = 0; i < x; i++) {
+                    registers.at(i) = memory.at(i_register+i);
+                } // TODO CHECK
+                std::cout << "LD V" << unsigned(x) << ", [I]\n";
+
+            } else {
+                std::cout << "NOOP? " << unsigned(instruction) << "\n";
             }
-
-            std::cout << "DRW V" << unsigned(second_nibble) << ", V" << unsigned(third_nibble) << ", ";
-            printf("0x%01x\n", fourth_nibble);
-
-        } else if (check_instruction(instruction, 0xF01E, 0xF0FF)) {
-            // Fx1E - ADD I, Vx
-            // The values of I and Vx are added, and the results are stored in I.
-            i_register += registers.at(second_nibble);
-            std::cout << "ADD I, V" << unsigned(second_nibble) << "\n";
-
-        } else {
-            std::cout << "NOOP? " << unsigned(instruction) << "\n";
         }
     }
 
@@ -374,5 +528,36 @@ namespace chip8 {
         }
 
         return result;
+    }
+
+    void startup()
+    {
+        // Load fonts
+        std::array<std::uint8_t, 0x50> fonts {
+            0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+            0x20, 0x60, 0x20, 0x20, 0x70, // 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+            0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+        };
+
+        for (std::uint16_t i = 0; (i + 0x50) <= 0x9F; i++)
+        {
+            memory.at(i + 0x50) = fonts.at(i);
+        }
+
+        // Seed random
+        srand((unsigned) time(NULL));
     }
 }
