@@ -524,8 +524,8 @@ namespace chip8 {
     std::array<std::array<uint16_t, SCREEN_WIDTH>, SCREEN_HEIGHT> get_video_buffer() {
         auto result = std::array<std::array<uint16_t, SCREEN_WIDTH>, SCREEN_HEIGHT> {};
         
-        for (int i = 0; i < SCREEN_HEIGHT; i++) {
-            for (int j = 0; j < SCREEN_WIDTH; j++) {
+        for (size_t i = 0; i < SCREEN_HEIGHT; i++) {
+            for (size_t j = 0; j < SCREEN_WIDTH; j++) {
                 if (display.at(i).at(j) == 1)
                 {
                     result.at(i).at(j) = 0xffff;

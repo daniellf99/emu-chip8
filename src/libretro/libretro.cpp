@@ -25,7 +25,7 @@ along with emu-chip8. If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #include "libretro.h"
-#include "../chip8.h"
+#include "../chip8.h"   
 
 constexpr int CYCLES_PER_FRAME = 700;
 unsigned long cycles_per_frame = CYCLES_PER_FRAME;
@@ -43,7 +43,8 @@ unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 
 // Cheats
 void retro_cheat_reset(void) {}
-void retro_cheat_set(unsigned index, bool enabled, const char *code) {}
+void retro_cheat_set([[maybe_unused]] unsigned index, [[maybe_unused]] bool enabled, [[maybe_unused]] const char *code) {
+}
 
 // Load a cartridge
 bool retro_load_game(const struct retro_game_info *info)
@@ -85,7 +86,7 @@ bool retro_load_game(const struct retro_game_info *info)
     return true;
 }
 
-bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info) { return false; }
+bool retro_load_game_special([[maybe_unused]] unsigned game_type, [[maybe_unused]] const struct retro_game_info *info, [[maybe_unused]] size_t num_info) { return false; }
 
 // Unload the cartridge
 void retro_unload_game(void) { chip8::unload_rom(); }
@@ -93,16 +94,16 @@ void retro_unload_game(void) { chip8::unload_rom(); }
 unsigned retro_get_region(void) { return RETRO_REGION_PAL; }
 
 // libretro unused api functions
-void retro_set_controller_port_device(unsigned port, unsigned device) {}
+void retro_set_controller_port_device([[maybe_unused]] unsigned port, [[maybe_unused]] unsigned device) {}
 
 
-void *retro_get_memory_data(unsigned id) { return nullptr; }
-size_t retro_get_memory_size(unsigned id){ return 0; }
+void *retro_get_memory_data([[maybe_unused]] unsigned id) { return nullptr; }
+size_t retro_get_memory_size([[maybe_unused]] unsigned id){ return 0; }
 
 // Serialisation methods
 size_t retro_serialize_size(void) { return 0; }
-bool retro_serialize(void *data, size_t size) { return false; }
-bool retro_unserialize(const void *data, size_t size) { return false; }
+bool retro_serialize([[maybe_unused]] void *data, [[maybe_unused]] size_t size) { return false; }
+bool retro_unserialize([[maybe_unused]] const void *data, [[maybe_unused]] size_t size) { return false; }
 
 // End of retrolib
 void retro_deinit(void) { }
@@ -120,7 +121,7 @@ void retro_set_environment(retro_environment_t cb) {
   cb(RETRO_ENVIRONMENT_SET_VARIABLES, variables);
 }
 
-void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {}
+void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
 void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
 void retro_set_audio_sample(retro_audio_sample_t cb) { audio_cb = cb; }
 void retro_set_input_poll(retro_input_poll_t cb) { input_poll_cb = cb; }
