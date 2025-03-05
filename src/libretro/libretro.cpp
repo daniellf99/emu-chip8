@@ -97,8 +97,23 @@ unsigned retro_get_region(void) { return RETRO_REGION_PAL; }
 void retro_set_controller_port_device([[maybe_unused]] unsigned port, [[maybe_unused]] unsigned device) {}
 
 
-void *retro_get_memory_data([[maybe_unused]] unsigned id) { return nullptr; }
-size_t retro_get_memory_size([[maybe_unused]] unsigned id){ return 0; }
+void *retro_get_memory_data(unsigned id)
+{ 
+    if (id == RETRO_MEMORY_SYSTEM_RAM) {
+        return chip8::get_memory_buffer();
+    }
+
+    return nullptr;
+}
+
+size_t retro_get_memory_size(unsigned id)
+{
+    if (id == RETRO_MEMORY_SYSTEM_RAM) {
+        return (size_t) chip8::get_memory_size();
+    }
+
+    return 0; 
+}
 
 // Serialisation methods
 size_t retro_serialize_size(void) { return 0; }

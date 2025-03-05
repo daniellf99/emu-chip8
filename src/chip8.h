@@ -30,5 +30,9 @@ namespace chip8 {
 
     std::array<std::array<uint16_t, SCREEN_WIDTH>, SCREEN_HEIGHT> get_video_buffer();
 
+    uint8_t* get_memory_buffer();
+
+    int get_memory_size();
+
     void startup();
 }

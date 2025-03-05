@@ -566,4 +566,13 @@ namespace chip8 {
         // Seed random
         srand((unsigned) time(NULL));
     }
+
+    std::array<uint8_t, MEMORY_SIZE_BYTES>::pointer get_memory_buffer() 
+    {
+        return memory.data();
+    }
+
+    int get_memory_size() {
+        return MEMORY_SIZE_BYTES;
+    }
 }
